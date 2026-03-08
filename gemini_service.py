@@ -179,33 +179,39 @@ def generate_content(topic: str) -> dict:
 
 def generate_image(prompt):
     try:
-        import uuid
-        import requests
-        import urllib.parse
-        import random
-        import os
+        import uuid, requests, os, base64
 
         if not prompt or prompt.strip() == "":
-            prompt = 'cinematic high fashion editorial photography, elegant model, luxury outfit, studio lighting, vogue magazine style'
+            prompt = "cinematic high fashion editorial photography, elegant model, luxury outfit, studio lighting, vogue magazine style"
 
-        logger.info("Using Pollinations.ai for image generation...")
+        logger.info("Using Together.ai for image generation...")
         
-        encoded_prompt = urllib.parse.quote(prompt)
-        seed = random.randint(1, 9999999)
-        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&model=flux&nologo=true&seed={seed}"
+        api_key = os.environ.get("TOGETHER_API_KEY")
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
         
-        response = requests.get(url, timeout=120)
+        payload = {
+            "model": "black-forest-labs/FLUX.1-schnell-Free",
+            "prompt": prompt,
+            "width": 1024,
+            "height": 1024,
+            "steps": 4,
+            "n": 1
+        }
         
-        if response.status_code == 200:
-            filename = f"generated_{str(uuid.uuid4())[:8]}.jpg"
-            filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
-            with open(filepath, "wb") as f:
-                f.write(response.content)
-            logger.info("Pollinations image downloaded successfully.")
-            return filepath
-        else:
-            logger.error(f"Pollinations error: {response.status_code}")
-            return None
+        response = requests.post("https://api.together.xyz/v1/images/generations", headers=headers, json=payload, timeout=60)
+        data = response.json()
+        
+        image_b64 = data["data"][0]["b64_json"]
+        image_bytes = base64.b64decode(image_b64)
+        
+        filename = f"generated_{str(uuid.uuid4())[:8]}.jpg"
+        filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
+        with open(filepath, "wb") as f:
+            f.write(image_bytes)
+            
+        logger.info("Together.ai image generated successfully.")
+        return filepath
+        
     except Exception as e:
         logger.error(f"Image generation error: {e}")
         return None
