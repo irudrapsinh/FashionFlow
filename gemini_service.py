@@ -179,60 +179,42 @@ def generate_content(topic: str) -> dict:
 
 def generate_image(prompt):
     try:
-        import uuid, requests, os, base64
+        import uuid, requests, os, random
 
-        if not prompt or prompt.strip() == "":
-            prompt = "cinematic high fashion editorial photography, elegant model, luxury outfit, studio lighting, vogue magazine style"
+        logger.info("Using Pexels for image...")
+        api_key = os.environ.get("PEXELS_API_KEY")
+        if not api_key:
+            logger.error("PEXELS_API_KEY not set")
+            return None
 
-        logger.info("Using Together.ai for image generation...")
+        search_query = " ".join(prompt.split()[:4]) if prompt else CURRENT_NICHE
+        headers = {"Authorization": api_key}
+        url = f"https://api.pexels.com/v1/search?query={requests.utils.quote(search_query)}&per_page=15&orientation=portrait"
         
-        api_key = os.environ.get("TOGETHER_API_KEY")
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-        
-        payload = {
-            "model": "black-forest-labs/FLUX.1-schnell-Free",
-            "prompt": prompt,
-            "width": 1024,
-            "height": 1024,
-            "steps": 4,
-            "n": 1
-        }
-        
-        response = requests.post("https://api.together.xyz/v1/images/generations", headers=headers, json=payload, timeout=60)
-        
-        logger.info(f"Together.ai response status: {response.status_code}")
-        logger.info(f"Together.ai response text (first 500 chars): {response.text[:500]}")
-        
-        response.raise_for_status()
+        response = requests.get(url, headers=headers, timeout=30)
         data = response.json()
-        logger.info(f"Together.ai data parsed successfully.")
+        photos = data.get("photos", [])
         
-        image_data = data.get("data", [])
-        if not image_data:
-            logger.error(f"No image data found in response: {data}")
+        if not photos:
+            url = f"https://api.pexels.com/v1/search?query={requests.utils.quote(CURRENT_NICHE)}&per_page=15&orientation=portrait"
+            response = requests.get(url, headers=headers, timeout=30)
+            data = response.json()
+            photos = data.get("photos", [])
+            
+        if not photos:
+            logger.error("No photos found")
             return None
             
-        first_result = image_data[0]
-        image_bytes = None
-        
-        if "b64_json" in first_result:
-            image_b64 = first_result["b64_json"]
-            image_bytes = base64.b64decode(image_b64)
-        elif "url" in first_result:
-            image_url = first_result["url"]
-            img_response = requests.get(image_url, timeout=60)
-            img_response.raise_for_status()
-            image_bytes = img_response.content
-        else:
-            logger.error(f"Neither b64_json nor url found in result: {first_result}")
-            return None
+        photo = random.choice(photos)
+        image_url = photo["src"]["large2x"]
+        img_response = requests.get(image_url, timeout=30)
         
         filename = f"generated_{str(uuid.uuid4())[:8]}.jpg"
         filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
         with open(filepath, "wb") as f:
-            f.write(image_bytes)
+            f.write(img_response.content)
             
-        logger.info("Together.ai image generated successfully.")
+        logger.info("Pexels image downloaded successfully.")
         return filepath
         
     except Exception as e:
