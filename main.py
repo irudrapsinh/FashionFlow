@@ -67,11 +67,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
         
     context.user_data['is_generating'] = True
+    result = ConversationHandler.END
     try:
         await update.message.reply_text("Starting the content automation engine... 🚀\nChecking for pending content...")
-        return await process_content_generation(update.message.chat_id, context, update.message.reply_text, update.message.reply_photo)
+        result = await process_content_generation(update.message.chat_id, context, update.message.reply_text, update.message.reply_photo)
     finally:
         context.user_data['is_generating'] = False
+    return result
 
 async def auto_generate(context: ContextTypes.DEFAULT_TYPE):
     """Scheduled task for hourly automation."""
