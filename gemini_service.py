@@ -133,8 +133,8 @@ def generate_image(prompt):
         if not prompt or prompt.strip() == "":
             prompt = 'cinematic high fashion editorial photography, elegant model, luxury outfit, studio lighting, vogue magazine style'
             
-        logger.info("Using Hugging Face FLUX.1-dev for image generation...")
-        url = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-dev"
+        logger.info("Using Hugging Face FLUX.1-schnell for image generation...")
+        url = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell"
         hf_token = os.environ.get("HF_TOKEN")
         
         if not hf_token:
