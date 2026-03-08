@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 # We expect the caller or main.py to call configure(), but we can do it here lazily
 _client = None
 
+CURRENT_NICHE = "premium fashion lifestyle, elegant outfits, luxury clothing, high-end accessories, beauty trends, and editorial street style"
+
 def _ensure_configured():
     global _client
     if _client is None:
@@ -21,6 +23,36 @@ def _ensure_configured():
             raise ValueError("GROQ_API_KEY environment variable not set.")
         _client = groq.Groq(api_key=api_key)
 
+def set_niche(niche: str):
+    """
+    Expands a single word or short phrase into a detailed niche description using Groq.
+    Updates the global CURRENT_NICHE used for content generation.
+    """
+    global CURRENT_NICHE
+    _ensure_configured()
+    
+    prompt = (
+        f"The user wants to create social media content about: {niche}. "
+        "Expand this into a detailed, specific content niche description in one sentence, "
+        "covering the style, tone, topics, and target audience. Be specific and premium. "
+        "Reply with only the expanded description, nothing else."
+    )
+    
+    try:
+        assert _client is not None
+        response = _client.chat.completions.create(
+            model='llama-3.3-70b-versatile',
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
+        expanded = response.choices[0].message.content.strip()
+        CURRENT_NICHE = expanded
+        logger.info(f"Niche updated to: {CURRENT_NICHE}")
+    except Exception as e:
+        logger.error(f"Failed to expand niche using Groq: {e}. Falling back to raw word.")
+        CURRENT_NICHE = niche
+
 def generate_topic_prompt() -> str:
     """
     Asks Gemini to brainstorm a creative topic for a social media post.
@@ -28,15 +60,14 @@ def generate_topic_prompt() -> str:
     _ensure_configured()
     
     # Using Groq llama-3.3-70b-versatile with system instruction
-    system_instruction = "You are a fashion content creator. You must ONLY generate content about fashion, style, outfits, clothing, accessories, and beauty. Never generate content about technology, AI, or any other topic."
+    system_instruction = f"You are a premium content creator. You must ONLY generate content related to this niche: {CURRENT_NICHE}. Never generate content outside of this specific niche."
     
     prompt = (
-        "You are an expert social media manager and high-end fashion influencer. "
+        f"You are an expert social media manager and high-end influencer in this niche: {CURRENT_NICHE}. "
         "Strictly generate a single, highly specific and detailed trending content idea/topic "
-        "for a premium fashion social media post (e.g., Instagram/Pinterest). "
-        "All content MUST be strictly about fashion — topics should cover outfit ideas, style trends, "
-        "clothing, accessories, beauty, street style, editorial looks, or seasonal fashion. Never generate anything outside of fashion. "
-        "Do not use generic topics like 'summer fashion'. Instead, make it specific, e.g., 'effortless street style looks for hot summer days featuring linen co-ords and minimalist accessories'. "
+        "for a premium social media post (e.g., Instagram/Pinterest). "
+        "All content MUST be strictly about the defined niche. Never generate anything outside of it. "
+        "Do not use generic topics. Instead, make it specific and highly engaging. "
         "Just reply with the topic idea, nothing else. Overall quality must be premium."
     )
     
@@ -67,12 +98,12 @@ def generate_content(topic: str) -> dict:
     """
     _ensure_configured()
     
-    system_instruction = "You are a fashion content creator. You must ONLY generate content about fashion, style, outfits, clothing, accessories, and beauty. Never generate content about technology, AI, or any other topic."
+    system_instruction = f"You are a premium content creator. You must ONLY generate content related to this niche: {CURRENT_NICHE}. Never generate content outside of this specific niche."
     
     prompt = f"""
-    Based on the topic: "{topic}", create a highly engaging social media post.
-    You are a premium fashion influencer with a vibrant, authentic personality.
-    All content must be strictly about fashion or style. Overall quality must be premium — every generation should look and feel like it came from a professional fashion brand account.
+    Based on the topic: "{topic}" and the niche: "{CURRENT_NICHE}", create a highly engaging social media post.
+    You are a premium influencer with a vibrant, authentic personality in this niche.
+    All content must be strictly about the niche. Overall quality must be premium — every generation should look and feel like it came from a professional brand account.
     
     Provide the response in the following exact format:
     
