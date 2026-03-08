@@ -262,6 +262,25 @@ async def auto_approval_fallback(update: Update, context: ContextTypes.DEFAULT_T
         return await handle_approval(update, context)
     return ConversationHandler.END
 
+async def setniche_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handles the /setniche command to change the content generation niche."""
+    if not context.args:
+        await update.message.reply_text("Please provide a niche. Example: /setniche fitness")
+        return
+        
+    niche_word = " ".join(context.args)
+    await update.message.reply_text(f"Expanding and setting niche to '{niche_word}'... ⏳")
+    
+    # Run in executor to not block the async event loop with sync requests
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, gemini_service.set_niche, niche_word)
+    
+    await update.message.reply_text(f"✅ Niche successfully updated!\n\n*Current Niche Focus:*\n{gemini_service.CURRENT_NICHE}", parse_mode='Markdown')
+
+async def currentniche_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Replies with the currently active niche."""
+    await update.message.reply_text(f"*Current Niche Focus:*\n{gemini_service.CURRENT_NICHE}", parse_mode='Markdown')
+
 def main() -> None:
     """Run the bot."""
     load_dotenv()
@@ -299,6 +318,10 @@ def main() -> None:
     # Setup Job Queue for the hourly automation
     # interval=3600 (1 hour). Run first one 10 seconds after boot.
     application.job_queue.run_repeating(auto_generate, interval=3600, first=10, data={'chat_id': chat_id})
+    
+    # Add standalone commands for niche management
+    application.add_handler(CommandHandler("setniche", setniche_command))
+    application.add_handler(CommandHandler("currentniche", currentniche_command))
     
     # Start the Bot
     logger.info("Content Automation Bot is starting and polling for messages. Hourly scheduler activated.")

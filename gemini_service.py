@@ -13,7 +13,18 @@ logger = logging.getLogger(__name__)
 # We expect the caller or main.py to call configure(), but we can do it here lazily
 _client = None
 
-CURRENT_NICHE = "premium fashion lifestyle, elegant outfits, luxury clothing, high-end accessories, beauty trends, and editorial street style"
+CURRENT_NICHE = "high-end fashion"
+NICHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "niche.txt")
+
+if os.path.exists(NICHE_FILE):
+    try:
+        with open(NICHE_FILE, 'r') as f:
+            saved_niche = f.read().strip()
+            if saved_niche:
+                CURRENT_NICHE = saved_niche
+                logger.info(f"Loaded niche from file: {CURRENT_NICHE}")
+    except Exception as e:
+        logger.error(f"Failed to load niche.txt: {e}")
 
 def _ensure_configured():
     global _client
@@ -49,9 +60,19 @@ def set_niche(niche: str):
         expanded = response.choices[0].message.content.strip()
         CURRENT_NICHE = expanded
         logger.info(f"Niche updated to: {CURRENT_NICHE}")
+        try:
+            with open(NICHE_FILE, 'w') as f:
+                f.write(CURRENT_NICHE)
+        except Exception as e:
+            logger.error(f"Failed to save niche to file: {e}")
     except Exception as e:
         logger.error(f"Failed to expand niche using Groq: {e}. Falling back to raw word.")
         CURRENT_NICHE = niche
+        try:
+            with open(NICHE_FILE, 'w') as f:
+                f.write(CURRENT_NICHE)
+        except Exception as fe:
+            logger.error(f"Failed to save fallback niche to file: {fe}")
 
 def generate_topic_prompt() -> str:
     """
@@ -162,7 +183,7 @@ def generate_image(prompt):
     """
     try:
         if not prompt or prompt.strip() == "":
-            prompt = 'cinematic high fashion editorial photography, elegant model, luxury outfit, studio lighting, vogue magazine style'
+            prompt = f'cinematic highly detailed photography, {CURRENT_NICHE}, elegant, studio lighting, highly aesthetic'
             
         logger.info("Using Hugging Face FLUX.1-schnell for image generation...")
         url = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell"
