@@ -178,50 +178,33 @@ def generate_content(topic: str) -> dict:
     }
 
 def generate_image(prompt):
-    """
-    Generates an image using Hugging Face FLUX.1-schnell model.
-    """
     try:
+        import uuid
+        import requests
+        import urllib.parse
+        import random
+        import os
+
         if not prompt or prompt.strip() == "":
-            prompt = f'cinematic highly detailed photography, {CURRENT_NICHE}, elegant, studio lighting, highly aesthetic'
-            
-        logger.info("Using Hugging Face FLUX.1-schnell for image generation...")
-        url = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell"
-        hf_token = os.environ.get("HF_TOKEN")
+            prompt = 'cinematic high fashion editorial photography, elegant model, luxury outfit, studio lighting, vogue magazine style'
+
+        logger.info("Using Pollinations.ai for image generation...")
         
-        if not hf_token:
-            logger.error("HF_TOKEN not found in environment.")
-            return None
-            
-        headers = {
-            "Authorization": f"Bearer {hf_token}"
-        }
+        encoded_prompt = urllib.parse.quote(prompt)
+        seed = random.randint(1, 9999999)
+        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&model=flux&nologo=true&seed={seed}"
         
-        payload = {
-            "inputs": prompt,
-            "parameters": {
-                "seed": random.randint(1, 9999999),
-                "num_inference_steps": 50,
-                "guidance_scale": 7.5,
-                "width": 1024,
-                "height": 1024
-            }
-        }
-        
-        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        response = requests.get(url, timeout=120)
         
         if response.status_code == 200:
-            uuid_str = str(uuid.uuid4()).replace('-', '')
-            filename = f"generated_{uuid_str[:8]}.jpg"
-            save_dir = "D:/Content AI/generated_images"
-            os.makedirs(save_dir, exist_ok=True)
-            filepath = os.path.join(save_dir, filename)
+            filename = f"generated_{str(uuid.uuid4())[:8]}.jpg"
+            filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
             with open(filepath, "wb") as f:
                 f.write(response.content)
-            logger.info("Hugging Face image downloaded successfully.")
+            logger.info("Pollinations image downloaded successfully.")
             return filepath
         else:
-            logger.error(f"Failed to generate HF image: {response.status_code} - {response.text}")
+            logger.error(f"Pollinations error: {response.status_code}")
             return None
     except Exception as e:
         logger.error(f"Image generation error: {e}")
