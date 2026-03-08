@@ -199,10 +199,33 @@ def generate_image(prompt):
         }
         
         response = requests.post("https://api.together.xyz/v1/images/generations", headers=headers, json=payload, timeout=60)
-        data = response.json()
         
-        image_b64 = data["data"][0]["b64_json"]
-        image_bytes = base64.b64decode(image_b64)
+        logger.info(f"Together.ai response status: {response.status_code}")
+        logger.info(f"Together.ai response text (first 500 chars): {response.text[:500]}")
+        
+        response.raise_for_status()
+        data = response.json()
+        logger.info(f"Together.ai data parsed successfully.")
+        
+        image_data = data.get("data", [])
+        if not image_data:
+            logger.error(f"No image data found in response: {data}")
+            return None
+            
+        first_result = image_data[0]
+        image_bytes = None
+        
+        if "b64_json" in first_result:
+            image_b64 = first_result["b64_json"]
+            image_bytes = base64.b64decode(image_b64)
+        elif "url" in first_result:
+            image_url = first_result["url"]
+            img_response = requests.get(image_url, timeout=60)
+            img_response.raise_for_status()
+            image_bytes = img_response.content
+        else:
+            logger.error(f"Neither b64_json nor url found in result: {first_result}")
+            return None
         
         filename = f"generated_{str(uuid.uuid4())[:8]}.jpg"
         filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
